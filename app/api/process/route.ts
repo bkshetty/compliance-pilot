@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage } from '@langchain/core/messages';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma'; // <-- We added your database client!
 
 // 1. The JSON Structure
 const invoiceSchema = z.object({
@@ -60,28 +59,15 @@ export async function POST(request: Request) {
       complianceStatus = "PENDING";
       risk = "Medium";
     }
-
-    // --- NEW: SAVING TO YOUR DATABASE ---
-    console.log("💾 Saving to PostgreSQL via Prisma...");
-    const savedInvoice = await prisma.invoice.create({
-      data: {
-        vendorName: aiData.vendorName,
-        invoiceNumber: aiData.invoiceNumber,
-        amount: aiData.amount,
-        date: new Date(aiData.date), // Convert string to proper Date object
-        gstin: aiData.gstin,
-        taxRate: aiData.taxRate,
-        status: complianceStatus,
-        riskScore: risk,
-      }
-    });
-
-    console.log("🎉 Successfully saved to Database!");
-
     // Return the final data to the UI
     return NextResponse.json({ 
       success: true, 
-      data: savedInvoice 
+      data: {
+        ...aiData,
+        status: complianceStatus,
+        riskScore: risk,
+        fileUrl: fileUrl // Pass the image URL back so we can show it on the split screen
+      }
     });
 
   } catch (error: any) {
