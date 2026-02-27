@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Stores the extracted invoice data
+model Invoice {
+  id            String   @id @default(uuid())
+  vendorName    String
+  invoiceNumber String
+  amount        Float
+  date          DateTime
+  gstin         String?
+  taxRate       Float?
+  
+  // Compliance tracking
+  status        String   @default("PENDING") // PENDING, VALID, FLAG_DUPLICATE, FLAG_INVALID_GST
+  riskScore     String?  // Low, Medium, High
+  
+  createdAt     DateTime @default(now())
+}
+
+// The "Persistent Financial Memory" for the AI Risk Engine
+model FinancialMemory {
+  id              String   @id @default(uuid())
+  month           String   // e.g., "2026-02"
+  totalOutflow    Float    @default(0.0)
+  pendingGstTax   Float    @default(0.0)
+  anomaliesFlagged Int     @default(0)
+  
+  updatedAt       DateTime @updatedAt
+}
