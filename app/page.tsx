@@ -1,65 +1,103 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+
+export default function TestHarness() {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<string>("Waiting for upload...");
+  const [result, setResult] = useState<any>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleTestWorkflow = async () => {
+    if (!file) {
+      alert("Please select an invoice first!");
+      return;
+    }
+
+    setLoading(true);
+    setResult(null);
+
+    try {
+      // Phase 1: Upload the file to your backend
+      setStatus("Uploading to Supabase Storage...");
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // NOTE: This assumes Yuvaraj has built this endpoint!
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
+      const fileUrl = uploadData.url;
+
+      // Phase 2: Trigger the Agentic AI Workflow
+      setStatus("Processing via LangGraph Agents...");
+      const processRes = await fetch("/api/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileUrl }),
+      });
+
+      if (!processRes.ok) throw new Error("AI Processing failed");
+      const processData = await processRes.json();
+
+      // Phase 3: Display Results
+      setStatus("Workflow Complete!");
+      setResult(processData);
+
+    } catch (error: any) {
+      console.error(error);
+      setStatus(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen p-8 bg-gray-50 text-gray-900">
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">COMPLIANCEPILOT.ai Test Harness</h1>
+          <p className="text-gray-500">Upload an invoice to test the backend extraction and LangGraph workflow.</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Control Panel */}
+        <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+          <input 
+            type="file" 
+            accept="image/*,application/pdf"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4"
+          />
+          <button 
+            onClick={handleTestWorkflow}
+            disabled={loading || !file}
+            className="w-full py-2 px-4 bg-black text-white rounded-md font-medium disabled:bg-gray-400 transition-colors"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {loading ? "Running Agents..." : "Run Autonomous Workflow"}
+          </button>
         </div>
-      </main>
-    </div>
+
+        {/* Status & Output */}
+        <div className="space-y-2">
+          <div className="font-medium">Status: <span className="text-blue-600">{status}</span></div>
+          
+          <div className="p-4 bg-gray-900 rounded-xl overflow-auto h-96">
+            <pre className="text-sm text-green-400 font-mono">
+              {result ? JSON.stringify(result, null, 2) : "// AI Output will appear here as structured JSON"}
+            </pre>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }
